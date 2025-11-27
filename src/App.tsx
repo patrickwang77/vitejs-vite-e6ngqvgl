@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, 
   PieChart, 
@@ -98,6 +98,47 @@ const formatNumber = (num: number) => num.toLocaleString();
 const parseNumber = (str: string) => {
   const val = parseFloat(str.replace(/,/g, ''));
   return isNaN(val) ? 0 : val;
+};
+
+// --- 優化後的數值輸入元件 (解決小數點問題) ---
+const NumberInput = ({ 
+  value, 
+  onChange, 
+  className = "" 
+}: { 
+  value: number, 
+  onChange: (val: number) => void, 
+  className?: string 
+}) => {
+  const [localVal, setLocalVal] = useState<string | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalVal(raw);
+    
+    // 允許輸入空字串或負號，暫不更新父層，避免 NaN
+    if (raw === '' || raw === '-') return;
+
+    const num = parseFloat(raw.replace(/,/g, ''));
+    if (!isNaN(num)) {
+        onChange(num);
+    }
+  };
+
+  const handleBlur = () => setLocalVal(null);
+  const handleFocus = () => setLocalVal(value.toString());
+
+  return (
+    <input
+      type="text"
+      className={className}
+      // 當正在編輯(localVal不為null)時顯示原始輸入，否則顯示格式化後的數字
+      value={localVal !== null ? localVal : formatNumber(value)}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onFocus={handleFocus}
+    />
+  );
 };
 
 // --- Hooks ---
@@ -397,12 +438,6 @@ const PortfolioView = ({ settings, portfolio, cash, onUpdateSettings, onUpdatePo
   const totalPct = settings.ratios.tw + settings.ratios.us + settings.ratios.bond;
   const [sortConfig, setSortConfig] = useState<{ key: keyof PortfolioItem | 'value', direction: 'asc' | 'desc' } | null>(null);
 
-  const handleNumberChange = (val: string, setter: (val: number) => void, allowNegative: boolean = false) => {
-      let num = parseNumber(val);
-      if (!allowNegative && num < 0) num = 0;
-      setter(num);
-  };
-
   const sortedPortfolio = useMemo(() => {
     if (!sortConfig) return portfolio;
     return [...portfolio].sort((a: any, b: any) => {
@@ -423,7 +458,7 @@ const PortfolioView = ({ settings, portfolio, cash, onUpdateSettings, onUpdatePo
   const handleSort = (key: any) => {
     setSortConfig(current => ({
       key,
-      direction: current?.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+      direction: current?.key === key && current?.direction === 'asc' ? 'desc' : 'asc'
     }));
   };
 
@@ -443,10 +478,9 @@ const PortfolioView = ({ settings, portfolio, cash, onUpdateSettings, onUpdatePo
                 <div className="space-y-4">
                    <div>
                       <label className="block text-xs text-slate-400 mb-1">總資產目標 (萬 TWD)</label>
-                      <input 
-                        type="text" 
-                        value={formatNumber(settings.totalGoal)}
-                        onChange={(e) => handleNumberChange(e.target.value, (v) => onUpdateSettings('totalGoal', v))}
+                      <NumberInput 
+                        value={settings.totalGoal}
+                        onChange={(v) => onUpdateSettings('totalGoal', v)}
                         className="glass-input w-full p-2 rounded font-mono text-lg font-bold text-emerald-400" 
                       />
                    </div>
@@ -488,19 +522,17 @@ const PortfolioView = ({ settings, portfolio, cash, onUpdateSettings, onUpdatePo
              <h4 className="text-emerald-400 font-bold mb-3 flex items-center gap-2"><Wallet size={18} /> 現金部位 (War Chest)</h4>
              <div className="mb-4">
                 <label className="text-sm text-slate-400">目前閒置資金 (萬):</label>
-                <input 
-                   type="text" 
-                   value={formatNumber(cash)} 
-                   onChange={(e) => handleNumberChange(e.target.value, onUpdateCash)}
+                <NumberInput 
+                   value={cash} 
+                   onChange={onUpdateCash}
                    className="glass-input w-full mt-1 p-2 rounded font-mono text-xl font-bold text-right"
                 />
              </div>
              <div className="pt-4 border-t border-slate-700/50">
                 <label className="text-sm text-slate-400">每月可投資金額 (萬):</label>
-                <input 
-                   type="text" 
-                   value={formatNumber(settings.monthlyContribution)}
-                   onChange={(e) => handleNumberChange(e.target.value, (v) => onUpdateSettings('monthlyContribution', v))}
+                <NumberInput 
+                   value={settings.monthlyContribution}
+                   onChange={(v) => onUpdateSettings('monthlyContribution', v)}
                    className="glass-input w-full mt-1 p-2 rounded font-mono text-xl font-bold text-right text-blue-400"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">*此數值將連動至試算與 AI 評估</p>
@@ -546,14 +578,14 @@ const PortfolioView = ({ settings, portfolio, cash, onUpdateSettings, onUpdatePo
                                <button onClick={() => onUpdatePortfolio(item.id, 'currency', item.currency === 'twd' ? 'usd' : 'twd')} className={`text-xs px-2 py-1 rounded border ${item.currency === 'usd' ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10' : 'border-blue-500/50 text-blue-400 bg-blue-500/10'}`}>{item.currency.toUpperCase()}</button>
                             </td>
                             <td className="px-4 py-2 text-right">
-                                <input type="text" value={formatNumber(item.shares)} onChange={(e) => handleNumberChange(e.target.value, (v) => onUpdatePortfolio(item.id, 'shares', v))} className="glass-input w-24 text-right font-mono text-slate-300 outline-none rounded px-2 py-1" />
+                                <NumberInput value={item.shares} onChange={(v) => onUpdatePortfolio(item.id, 'shares', v)} className="glass-input w-24 text-right font-mono text-slate-300 outline-none rounded px-2 py-1" />
                             </td>
                             <td className="px-4 py-2 text-right">
-                                <input type="text" value={formatNumber(item.price)} onChange={(e) => handleNumberChange(e.target.value, (v) => onUpdatePortfolio(item.id, 'price', v))} className="glass-input w-24 text-right font-mono text-emerald-400 outline-none rounded px-2 py-1" />
+                                <NumberInput value={item.price} onChange={(v) => onUpdatePortfolio(item.id, 'price', v)} className="glass-input w-24 text-right font-mono text-emerald-400 outline-none rounded px-2 py-1" />
                             </td>
                             <td className="px-4 py-2 text-right font-mono text-white">{value.toFixed(2)}</td>
                             <td className="px-4 py-2 text-center">
-                               <button onClick={() => onConfirmDeleteAsset(item.id)} className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10"><Trash2 size={16} /></button>
+                                <button onClick={() => onConfirmDeleteAsset(item.id)} className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10"><Trash2 size={16} /></button>
                             </td>
                          </tr>
                       );
@@ -573,6 +605,7 @@ const PortfolioView = ({ settings, portfolio, cash, onUpdateSettings, onUpdatePo
   );
 }
 
+// --- SimulationView ---
 const SimulationView = ({ simParams, setSimParams }: any) => {
   const simulationData = useMemo(() => {
     const monthlyRate = (simParams.rate / 100) / 12;
@@ -629,19 +662,17 @@ const SimulationView = ({ simParams, setSimParams }: any) => {
              <div className="space-y-4">
                 <div>
                    <label className="block text-xs text-slate-400 mb-1">起始投入金額 (元)</label>
-                   <input 
-                     type="text" 
-                     value={formatNumber(simParams.initial)} 
-                     onChange={(e) => handleSimChange('initial', e.target.value)}
+                   <NumberInput 
+                     value={simParams.initial}
+                     onChange={(v) => setSimParams((prev: any) => ({ ...prev, initial: v }))}
                      className="glass-input w-full p-2 text-lg rounded font-mono text-white"
                    />
                 </div>
                 <div>
                    <label className="block text-xs text-slate-400 mb-1">每月定期定額 (元)</label>
-                   <input 
-                     type="text" 
-                     value={formatNumber(simParams.monthly)} 
-                     onChange={(e) => handleSimChange('monthly', e.target.value)}
+                   <NumberInput 
+                     value={simParams.monthly}
+                     onChange={(v) => setSimParams((prev: any) => ({ ...prev, monthly: v }))}
                      className="glass-input w-full p-2 text-lg rounded font-mono text-white"
                    />
                 </div>
@@ -686,7 +717,7 @@ const SimulationView = ({ simParams, setSimParams }: any) => {
   );
 };
 
-// 5. Blueprint View
+// --- BlueprintView ---
 const BlueprintView = ({ report, onOpenAI }: { report: string, onOpenAI: () => void }) => {
   const { printContent, downloadContent } = useExport();
 
@@ -732,7 +763,7 @@ const BlueprintView = ({ report, onOpenAI }: { report: string, onOpenAI: () => v
   );
 };
 
-// 6. AI Modal
+// --- AIModal ---
 const AIModal = ({ isOpen, onClose, settings, portfolio, totalAsset, cash, onSaveKey, onSaveReport }: any) => {
     const [loading, setLoading] = useState(false);
     const [localKey, setLocalKey] = useState(settings.geminiApiKey);
@@ -948,7 +979,7 @@ const DeleteModal = ({ isOpen, onClose, onConfirm }: any) => {
     );
 };
 
-// --- Main App ---
+// --- Main App (修正過的定義) ---
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(DEFAULT_PORTFOLIO);

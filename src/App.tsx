@@ -307,7 +307,7 @@ const Header = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: 
             <TrendingUp size={20} />
           </div>
           <h1 className="text-lg md:text-xl font-bold tracking-tight text-white">
-            2030 資產指揮中心 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-pink-400 text-sm ml-1">v7.2</span>
+            目標資產達成指揮中心 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-pink-400 text-sm ml-1">v7.2</span>
           </h1>
         </div>
         <nav className="hidden md:flex space-x-1 bg-slate-800 p-1 rounded-lg">
